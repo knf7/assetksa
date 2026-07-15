@@ -20,7 +20,7 @@ export const Route = createFileRoute("/api/extract-asset")({
             },
             body: JSON.stringify({
               model: "google/gemini-3.1-pro-preview",
-              response_format: { type: "json_object" },
+
               messages: [
                 {
                   role: "system",
