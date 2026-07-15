@@ -149,6 +149,12 @@ function Index() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       bumpScans();
+      const filled = ["ministry_tag","device_type","manufacturer","serial_number","mac_address","processor","windows_version","ram","hdd","ssd"]
+        .filter((k) => (data[k] ?? "").toString().trim().length > 0);
+      if (filled.length === 0) {
+        const dbg = data._debug ? `\n\nرد الذكاء الاصطناعي:\n${(data._debug.raw || "(فارغ)").slice(0, 500)}` : "";
+        throw new Error("لم يتم استخراج أي بيانات من الصورة. تأكد من وضوح الملصق والإضاءة." + dbg);
+      }
       setRow((r) => ({
         ...r,
         ministry_tag: data.ministry_tag || r.ministry_tag,
@@ -162,6 +168,7 @@ function Index() {
         hdd: data.hdd || r.hdd,
         ssd: data.ssd || r.ssd,
       }));
+
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -255,7 +262,7 @@ function Index() {
               </button>
             </div>
           )}
-          {error && <p className="mt-3 text-sm text-destructive">خطأ: {error}</p>}
+          {error && <pre className="mt-3 whitespace-pre-wrap text-xs text-destructive font-sans">خطأ: {error}</pre>}
         </section>
 
         <section className="rounded-lg border bg-card p-6">
