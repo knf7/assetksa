@@ -9,15 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSheetsAppendRouteImport } from './routes/api/sheets-append'
 import { Route as ApiExtractAssetRouteImport } from './routes/api/extract-asset'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiSheetsAppendRoute = ApiSheetsAppendRouteImport.update({
   id: '/api/sheets-append',
   path: '/api/sheets-append',
@@ -30,44 +24,33 @@ const ApiExtractAssetRoute = ApiExtractAssetRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/api/extract-asset': typeof ApiExtractAssetRoute
   '/api/sheets-append': typeof ApiSheetsAppendRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/api/extract-asset': typeof ApiExtractAssetRoute
   '/api/sheets-append': typeof ApiSheetsAppendRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/api/extract-asset': typeof ApiExtractAssetRoute
   '/api/sheets-append': typeof ApiSheetsAppendRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/extract-asset' | '/api/sheets-append'
+  fullPaths: '/api/extract-asset' | '/api/sheets-append'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/extract-asset' | '/api/sheets-append'
-  id: '__root__' | '/' | '/api/extract-asset' | '/api/sheets-append'
+  to: '/api/extract-asset' | '/api/sheets-append'
+  id: '__root__' | '/api/extract-asset' | '/api/sheets-append'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   ApiExtractAssetRoute: typeof ApiExtractAssetRoute
   ApiSheetsAppendRoute: typeof ApiSheetsAppendRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/sheets-append': {
       id: '/api/sheets-append'
       path: '/api/sheets-append'
@@ -86,7 +69,6 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   ApiExtractAssetRoute: ApiExtractAssetRoute,
   ApiSheetsAppendRoute: ApiSheetsAppendRoute,
 }
