@@ -262,7 +262,7 @@ function Index() {
               </button>
             </div>
           )}
-          {error && <p className="mt-3 text-sm text-destructive">خطأ: {error}</p>}
+          {error && <pre className="mt-3 whitespace-pre-wrap text-xs text-destructive font-sans">خطأ: {error}</pre>}
         </section>
 
         <section className="rounded-lg border bg-card p-6">
