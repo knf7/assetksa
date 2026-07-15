@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSheetsAppendRouteImport } from './routes/api/sheets-append'
 import { Route as ApiExtractAssetRouteImport } from './routes/api/extract-asset'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSheetsAppendRoute = ApiSheetsAppendRouteImport.update({
+  id: '/api/sheets-append',
+  path: '/api/sheets-append',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExtractAssetRoute = ApiExtractAssetRouteImport.update({
@@ -26,27 +32,31 @@ const ApiExtractAssetRoute = ApiExtractAssetRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/extract-asset': typeof ApiExtractAssetRoute
+  '/api/sheets-append': typeof ApiSheetsAppendRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/extract-asset': typeof ApiExtractAssetRoute
+  '/api/sheets-append': typeof ApiSheetsAppendRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/extract-asset': typeof ApiExtractAssetRoute
+  '/api/sheets-append': typeof ApiSheetsAppendRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/extract-asset'
+  fullPaths: '/' | '/api/extract-asset' | '/api/sheets-append'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/extract-asset'
-  id: '__root__' | '/' | '/api/extract-asset'
+  to: '/' | '/api/extract-asset' | '/api/sheets-append'
+  id: '__root__' | '/' | '/api/extract-asset' | '/api/sheets-append'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiExtractAssetRoute: typeof ApiExtractAssetRoute
+  ApiSheetsAppendRoute: typeof ApiSheetsAppendRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sheets-append': {
+      id: '/api/sheets-append'
+      path: '/api/sheets-append'
+      fullPath: '/api/sheets-append'
+      preLoaderRoute: typeof ApiSheetsAppendRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/extract-asset': {
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiExtractAssetRoute: ApiExtractAssetRoute,
+  ApiSheetsAppendRoute: ApiSheetsAppendRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

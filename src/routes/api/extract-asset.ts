@@ -17,17 +17,21 @@ export const Route = createFileRoute("/api/extract-asset")({
             headers: {
               "Content-Type": "application/json",
               "Lovable-API-Key": key,
+              "X-Lovable-AIG-SDK": "direct-fetch",
             },
             body: JSON.stringify({
               model: "google/gemini-3.1-pro-preview",
-              max_tokens: 800,
-
-
+              max_tokens: 1400,
               messages: [
                 {
                   role: "system",
-                  content: `You are an expert OCR system for Saudi Ministry of Health (MOH) IT asset labels at King Fahad Hospital (KFH).
-Return ONLY a raw JSON object (no markdown, no fences, no prose) with EXACTLY these keys:
+                  content: `You are a senior OCR and IT inventory data extraction engine for Saudi Ministry of Health (MOH) / King Fahad Hospital IT asset photos.
+
+Return ONLY one raw JSON object. No markdown. No prose.
+
+The user may upload device photos, asset labels, serial stickers, printer labels, BIOS/spec screens, Windows About screens, or mixed photos. Extract only what is visible with high confidence.
+
+Return EXACTLY these keys:
 {
  "ministry_tag":"",
  "device_type":"",
@@ -43,7 +47,7 @@ Return ONLY a raw JSON object (no markdown, no fences, no prose) with EXACTLY th
 
 FIELD DEFINITIONS:
 - ministry_tag: MOH asset/inventory tag. Long numeric/alphanumeric code (e.g. "AHC002006907", "1140xxxx"). Labeled "MOH", "Asset Tag", "Property of MOH", "رقم الأصل", "الوزارة". NOT the manufacturer serial.
-- device_type: One of exactly: "Desktop computer", "Laptop", "All-in-One PC", "Monitor", "Printer", "Scanner", "UPS", "Docking Station", "Server", "Network Switch", "IP Phone", "Projector", "Tablet". Infer from the physical device in the photo.
+- device_type: One of exactly: "Desktop computer", "Laptop", "All-in-One PC", "Monitor", "Printer", "Scanner", "UPS", "Docking Station", "Server", "Network Switch", "IP Phone", "Projector", "Tablet". Infer from the visible physical device if unmistakable.
 - manufacturer: Canonical brand only: "HP", "Dell", "Lenovo", "Cisco", "Samsung", "Epson", "APC", "Acer", "Asus", "Apple", etc. Prefer the logo on the chassis over sticker text.
 - serial_number: Manufacturer S/N, labeled "S/N", "SN", "Serial", usually under a barcode. Different from ministry_tag. Copy exactly.
 - mac_address: Format XX-XX-XX-XX-XX-XX or XX:XX:XX:XX:XX:XX if visible.
@@ -54,10 +58,13 @@ FIELD DEFINITIONS:
 - ssd: e.g. "256 GB", "480 GB" if printed.
 
 STRICT VALIDATION (silent, before answering):
-1. Every value except device_type MUST literally appear in the image. If not clearly visible, return "" — never guess.
+1. Every value except device_type/manufacturer MUST literally appear in the image. If not clearly visible, return "" — never guess.
 2. ministry_tag MUST NOT equal serial_number.
 3. Strip leading labels ("S/N:", "Asset Tag:", "Model:") from values.
-4. No trailing spaces, no quotes inside values, no thousands separators.`,
+4. No trailing spaces, no quotes inside values, no thousands separators.
+5. If a barcode has text beneath it, extract the printed text, not the barcode pattern.
+6. If there are multiple serial-looking values, choose the one nearest to S/N, SN, Serial No, or الرقم التسلسلي.
+7. If the image is blurry/dark/too far and text cannot be read, leave text fields empty rather than hallucinating.`,
                 },
                 {
                   role: "user",
