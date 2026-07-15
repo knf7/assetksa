@@ -75,13 +75,16 @@ STRICT VALIDATION (silent, before answering):
           const data = (await upstream.json()) as {
             choices?: Array<{ message?: { content?: string } }>;
           };
-          const raw = data.choices?.[0]?.message?.content ?? "{}";
-          const cleaned = raw.replace(/```json|```/g, "").trim();
-          let parsed: Record<string, string> = {};
+          const raw = data.choices?.[0]?.message?.content ?? "";
+          let cleaned = raw.replace(/```json|```/g, "").trim();
+          const match = cleaned.match(/\{[\s\S]*\}/);
+          if (match) cleaned = match[0];
+          let parsed: Record<string, unknown> = {};
+          let parseError: string | null = null;
           try {
             parsed = JSON.parse(cleaned);
-          } catch {
-            parsed = {};
+          } catch (e) {
+            parseError = (e as Error).message;
           }
           const keys = [
             "ministry_tag",
@@ -96,8 +99,13 @@ STRICT VALIDATION (silent, before answering):
             "ssd",
           ] as const;
           const out: Record<string, string> = {};
-          for (const k of keys) out[k] = (parsed[k] ?? "").toString().trim();
+          for (const k of keys) out[k] = ((parsed[k] as string) ?? "").toString().trim();
+          const hasAny = Object.values(out).some((v) => v.length > 0);
+          if (!hasAny) {
+            return Response.json({ ...out, _debug: { raw, parseError } });
+          }
           return Response.json(out);
+
         } catch (e) {
           return Response.json({ error: (e as Error).message }, { status: 500 });
         }
