@@ -20,6 +20,8 @@ export const Route = createFileRoute("/api/extract-asset")({
             },
             body: JSON.stringify({
               model: "google/gemini-3.1-pro-preview",
+              max_tokens: 800,
+
 
               messages: [
                 {
