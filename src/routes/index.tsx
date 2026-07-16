@@ -10,6 +10,7 @@ import {
   ScanLine,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/")({
       { title: "KFH IT Asset Inventory" },
       {
         name: "description",
-        content: "نظام شخصي لجرد أصول تقنية المعلومات وتحليل صور الأجهزة وإرسال الصفوف إلى Google Sheets.",
+        content: "نظام جرد أصول تقنية المعلومات: صور متعددة، تحليل ذكي، وحفظ مباشر في Google Sheets.",
       },
     ],
   }),
@@ -65,6 +66,12 @@ type Quality = {
   height: number;
   sizeKb: number;
   notes: string[];
+};
+
+type ImageItem = {
+  id: string;
+  dataUrl: string;
+  quality: Quality;
 };
 
 const empty: AssetRow = {
@@ -146,6 +153,11 @@ const STORAGE_OPT = ["", "120 GB", "240 GB", "256 GB", "480 GB", "500 GB", "1 TB
 const SOLUTION_BY = ["IT", "Vendor", "Maintenance", ""];
 
 const FREE_TIER_MONTHLY = 25000;
+const MAX_IMAGES = 5;
+
+// Default shared destination sheet — any user of this site appends to it.
+const DEFAULT_SHEET_ID = "1Sjg1V0PdqRYCxUtWhb-WPjUGDu2_XbvMjZAgvnb6BDs";
+const DEFAULT_SHEET_NAME = "Sheet1";
 
 const SHEET_HEADERS = [
   "Department",
@@ -221,6 +233,7 @@ function rowToSheetValues(asset: AssetRow) {
 
 function extractSpreadsheetId(input: string) {
   const trimmed = input.trim();
+  if (!trimmed) return DEFAULT_SHEET_ID;
   const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   return match?.[1] || trimmed;
 }
@@ -260,19 +273,40 @@ function scoreQuality(file: File, width: number, height: number): Quality {
   };
 }
 
+function readFileAsImage(file: File): Promise<ImageItem> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        resolve({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          dataUrl,
+          quality: scoreQuality(file, img.naturalWidth, img.naturalHeight),
+        });
+      };
+      img.onerror = () => reject(new Error("تعذر قراءة الصورة"));
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function Index() {
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageItem[]>([]);
   const [row, setRow] = useState<AssetRow>(empty);
   const [saved, setSaved] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingSheet, setSavingSheet] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [quality, setQuality] = useState<Quality | null>(null);
   const [lastExtracted, setLastExtracted] = useState<Partial<AssetRow> | null>(null);
   const [scans, setScans] = useState(0);
   const [sheetInput, setSheetInput] = useState("");
-  const [sheetName, setSheetName] = useState("Sheet1");
+  const [sheetName, setSheetName] = useState(DEFAULT_SHEET_NAME);
+  const [showSheetSettings, setShowSheetSettings] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -292,7 +326,7 @@ function Index() {
       } catch {}
     }
     setSheetInput(localStorage.getItem("kfh-sheet-id") || "");
-    setSheetName(localStorage.getItem("kfh-sheet-name") || "Sheet1");
+    setSheetName(localStorage.getItem("kfh-sheet-name") || DEFAULT_SHEET_NAME);
   }, []);
 
   useEffect(() => {
@@ -311,26 +345,34 @@ function Index() {
     localStorage.setItem("kfh-ai-usage", JSON.stringify({ month, count: next }));
   }
 
-  async function onFile(file: File | null | undefined) {
-    if (!file) return;
+  async function onFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
     setError(null);
     setNotice(null);
     setLastExtracted(null);
-    setQuality(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setImage(dataUrl);
-      const img = new Image();
-      img.onload = () => setQuality(scoreQuality(file, img.naturalWidth, img.naturalHeight));
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
+    try {
+      const remaining = MAX_IMAGES - images.length;
+      if (remaining <= 0) {
+        setError(`الحد الأقصى ${MAX_IMAGES} صور.`);
+        return;
+      }
+      const arr = Array.from(files).slice(0, remaining);
+      const added = await Promise.all(arr.map(readFileAsImage));
+      setImages((current) => [...current, ...added]);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+      if (camRef.current) camRef.current.value = "";
+    }
   }
 
-  function clearImage() {
-    setImage(null);
-    setQuality(null);
+  function removeImage(id: string) {
+    setImages((current) => current.filter((image) => image.id !== id));
+  }
+
+  function clearImages() {
+    setImages([]);
     setError(null);
     setLastExtracted(null);
     if (fileRef.current) fileRef.current.value = "";
@@ -338,9 +380,10 @@ function Index() {
   }
 
   async function analyze() {
-    if (!image) return;
-    if (quality?.status === "bad") {
-      setError("جودة الصورة ضعيفة. الأفضل تعيد التصوير قريب من الملصق وبإضاءة واضحة قبل التحليل.");
+    if (images.length === 0) return;
+    const worst = images.reduce((acc, cur) => (cur.quality.score < acc.quality.score ? cur : acc), images[0]);
+    if (worst.quality.status === "bad") {
+      setError("توجد صورة جودتها ضعيفة. احذفها أو أعد التصوير قبل التحليل.");
       return;
     }
     setLoading(true);
@@ -350,7 +393,7 @@ function Index() {
       const res = await fetch("/api/extract-asset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl: image }),
+        body: JSON.stringify({ imageDataUrls: images.map((image) => image.dataUrl) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -360,7 +403,7 @@ function Index() {
       );
       if (filled.length === 0) {
         const debug = data._debug ? `\n\nرد الذكاء الاصطناعي:\n${(data._debug.raw || "(فارغ)").slice(0, 500)}` : "";
-        throw new Error("لم يتم استخراج أي بيانات من الصورة. تأكد من وضوح الملصق والإضاءة." + debug);
+        throw new Error("لم يتم استخراج أي بيانات من الصور. تأكد من وضوح الملصق والإضاءة." + debug);
       }
 
       const extracted = {
@@ -390,7 +433,7 @@ function Index() {
         ssd: extracted.ssd || current.ssd,
       }));
       setLastExtracted(extracted);
-      setNotice(`تم استخراج ${filled.length} حقول. راجعها قبل الحفظ.`);
+      setNotice(`تم استخراج ${filled.length} حقول من ${images.length} صورة. راجعها قبل الحفظ.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -401,19 +444,13 @@ function Index() {
   function save() {
     setSaved((current) => [...current, row]);
     setRow(empty);
-    setImage(null);
-    setQuality(null);
-    setLastExtracted(null);
+    clearImages();
     setNotice("تم حفظ الصف محلياً.");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function saveToSheet() {
     const spreadsheetId = extractSpreadsheetId(sheetInput);
-    if (!spreadsheetId) {
-      setError("أدخل رابط Google Sheet أو Spreadsheet ID أولاً.");
-      return;
-    }
     setSavingSheet(true);
     setError(null);
     setNotice(null);
@@ -421,13 +458,13 @@ function Index() {
       const res = await fetch("/api/sheets-append", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spreadsheetId, sheetName, values: rowToSheetValues(row) }),
+        body: JSON.stringify({ spreadsheetId, sheetName: sheetName || DEFAULT_SHEET_NAME, values: rowToSheetValues(row) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "فشل الحفظ في Google Sheets");
       setSaved((current) => [...current, row]);
       setRow(empty);
-      clearImage();
+      clearImages();
       setNotice("تم حفظ الصف وإرساله إلى Google Sheets.");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
@@ -458,6 +495,9 @@ function Index() {
 
   const usagePct = Math.min(100, Math.round((scans / FREE_TIER_MONTHLY) * 100));
   const remaining = Math.max(0, FREE_TIER_MONTHLY - scans);
+  const canAddMore = images.length < MAX_IMAGES;
+  const activeSheetId = extractSpreadsheetId(sheetInput);
+  const usingDefault = activeSheetId === DEFAULT_SHEET_ID;
 
   return (
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
@@ -465,10 +505,10 @@ function Index() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase text-muted-foreground" dir="ltr">
-              KFH · Personal IT Inventory
+              KFH · IT Asset Inventory
             </p>
             <h1 className="text-2xl font-bold tracking-normal sm:text-3xl">جرد الأصول التقنية</h1>
-            <p className="text-sm text-muted-foreground">تحليل صورة الجهاز · مراجعة البيانات · حفظ CSV أو Google Sheets</p>
+            <p className="text-sm text-muted-foreground">صور متعددة · تحليل ذكي · حفظ مباشر في Google Sheets</p>
           </div>
           <div className="min-w-[260px] rounded-lg border bg-background px-4 py-3 text-xs shadow-sm">
             <div className="mb-1 flex items-center justify-between gap-3">
@@ -480,7 +520,7 @@ function Index() {
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div className="h-full bg-primary" style={{ width: `${usagePct}%` }} />
             </div>
-            <p className="mt-1 text-[10px] text-muted-foreground">المتبقي التقريبي: {remaining.toLocaleString()} تحليل/كريدت هذا الشهر</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">المتبقي التقريبي: {remaining.toLocaleString()} تحليل هذا الشهر</p>
           </div>
         </div>
       </header>
@@ -488,71 +528,115 @@ function Index() {
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[380px_minmax(0,1fr)]">
         <div className="space-y-6">
           <section className="rounded-lg border bg-card p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">صورة الجهاز</h2>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">صور الجهاز</h2>
+              </div>
+              <span className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground" dir="ltr">
+                {images.length}/{MAX_IMAGES}
+              </span>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => camRef.current?.click()}
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                disabled={!canAddMore}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 <Camera className="h-4 w-4" />
                 كاميرا
               </button>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="inline-flex items-center justify-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
+                disabled={!canAddMore}
+                className="inline-flex items-center justify-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
-                رفع صورة
+                رفع صور
               </button>
-              <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+              <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+              <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
             </div>
 
-            {image ? (
+            {images.length === 0 ? (
+              <div className="mt-4 rounded-lg border border-dashed bg-muted/50 px-4 py-8 text-center text-sm text-muted-foreground">
+                أضف حتى {MAX_IMAGES} صور للجهاز (ملصق، شاسيه، شاشة المواصفات...).
+              </div>
+            ) : (
               <div className="mt-4 space-y-3">
-                <div className="overflow-hidden rounded-lg border bg-muted">
-                  <img src={image} alt="معاينة صورة الجهاز" className="max-h-80 w-full object-contain" />
+                <div className="grid grid-cols-3 gap-2">
+                  {images.map((image) => (
+                    <div key={image.id} className="group relative overflow-hidden rounded-md border bg-muted">
+                      <img src={image.dataUrl} alt="معاينة" className="aspect-square w-full object-cover" />
+                      <button
+                        onClick={() => removeImage(image.id)}
+                        className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-destructive shadow hover:bg-background"
+                        aria-label="حذف"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                      <span
+                        className={`absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-semibold text-white ${
+                          image.quality.status === "good" ? "bg-emerald-600" : image.quality.status === "medium" ? "bg-amber-600" : "bg-red-600"
+                        }`}
+                        dir="ltr"
+                      >
+                        {image.quality.score}%
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                {quality && <QualityPanel quality={quality} />}
+
                 <div className="grid grid-cols-[1fr_auto] gap-2">
                   <button
                     onClick={analyze}
-                    disabled={loading || quality?.status === "bad"}
+                    disabled={loading}
                     className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                   >
                     <ScanLine className="h-4 w-4" />
-                    {loading ? "جاري التحليل..." : "تحليل الصورة"}
+                    {loading ? "جاري التحليل..." : `تحليل ${images.length > 1 ? images.length + " صور" : "الصورة"}`}
                   </button>
                   <button
-                    onClick={clearImage}
+                    onClick={clearImages}
                     className="inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-accent"
-                    aria-label="حذف الصورة"
-                    title="حذف الصورة"
+                    title="مسح كل الصور"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="mt-4 rounded-lg border border-dashed bg-muted/50 px-4 py-8 text-center text-sm text-muted-foreground">
-                ارفع صورة واضحة للملصق أو شاشة مواصفات الجهاز.
-              </div>
             )}
           </section>
 
           <section className="rounded-lg border bg-card p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Google Sheets</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Google Sheets</h2>
+              </div>
+              <button
+                onClick={() => setShowSheetSettings((v) => !v)}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                {showSheetSettings ? "إخفاء" : "تغيير الوجهة"}
+              </button>
             </div>
-            <div className="space-y-3">
-              <Field label="رابط الشيت أو Spreadsheet ID" v={sheetInput} onChange={setSheetInput} placeholder="https://docs.google.com/spreadsheets/d/..." />
-              <Field label="اسم التب" v={sheetName} onChange={setSheetName} placeholder="Sheet1" />
-              <p className="text-xs text-muted-foreground">الربط جاهز. الصق رابط الشيت وتأكد أن حساب Google المربوط يملك صلاحية تعديل عليه.</p>
+            <div className={`rounded-md border p-3 text-xs ${usingDefault ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-muted"}`}>
+              <p className="font-medium">
+                {usingDefault ? "🟢 الوجهة الافتراضية (شيت KFH المشترك)" : "🟡 وجهة مخصصة"}
+              </p>
+              <p className="mt-1 truncate text-muted-foreground" dir="ltr" title={activeSheetId}>
+                {activeSheetId} · {sheetName || DEFAULT_SHEET_NAME}
+              </p>
             </div>
+            {showSheetSettings && (
+              <div className="mt-3 space-y-3">
+                <Field label="رابط الشيت أو Spreadsheet ID (اتركه فارغاً للافتراضي)" v={sheetInput} onChange={setSheetInput} placeholder="افتراضي: شيت KFH" />
+                <Field label="اسم التب" v={sheetName} onChange={setSheetName} placeholder={DEFAULT_SHEET_NAME} />
+                <p className="text-[11px] text-muted-foreground">أي مستخدم للموقع يضيف تلقائياً في الشيت الافتراضي ما لم يغيره هنا.</p>
+              </div>
+            )}
           </section>
         </div>
 
@@ -570,52 +654,66 @@ function Index() {
 
           <section className="rounded-lg border bg-card p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">مراجعة البيانات ({Object.keys(empty).length} حقل)</h2>
+              <h2 className="text-lg font-semibold">مراجعة البيانات</h2>
               <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">راجع قبل الحفظ</span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+
+            <FieldGroup title="الموقع والصيانة">
               <Field label="Department (القسم)" v={row.department} onChange={(value) => setRow({ ...row, department: value })} />
               <Select label="Floor (الدور)" v={row.floor} opts={FLOORS} onChange={(value) => setRow({ ...row, floor: value })} />
               <Field label="Employee / Room (الموقع)" v={row.location} onChange={(value) => setRow({ ...row, location: value })} rtl />
-              <Field label="Last Maintenance Date" v={row.last_maintenance} onChange={(value) => setRow({ ...row, last_maintenance: value })} placeholder="dd/mm/yyyy" />
-              <Field label="Next Maintenance Date" v={row.next_maintenance} onChange={(value) => setRow({ ...row, next_maintenance: value })} placeholder="dd/mm/yyyy" />
+              <Field label="Last Maintenance" v={row.last_maintenance} onChange={(value) => setRow({ ...row, last_maintenance: value })} placeholder="dd/mm/yyyy" />
+              <Field label="Next Maintenance" v={row.next_maintenance} onChange={(value) => setRow({ ...row, next_maintenance: value })} placeholder="dd/mm/yyyy" />
+            </FieldGroup>
+
+            <FieldGroup title="هوية الجهاز">
               <Field label="Ministry Tag" v={row.ministry_tag} onChange={(value) => setRow({ ...row, ministry_tag: value })} />
               <Select label="Device Type" v={row.device_type} opts={DEVICE_TYPES} onChange={(value) => setRow({ ...row, device_type: value })} />
               <Select label="Manufacturer" v={row.manufacturer} opts={MANUFACTURERS} onChange={(value) => setRow({ ...row, manufacturer: value })} />
               <Field label="Serial Number" v={row.serial_number} onChange={(value) => setRow({ ...row, serial_number: value })} />
               <Field label="MAC Address" v={row.mac_address} onChange={(value) => setRow({ ...row, mac_address: value })} placeholder="XX-XX-XX-XX-XX-XX" />
-              <Field label="Device Name (E2-HS-KFHH-...)" v={row.device_name} onChange={(value) => setRow({ ...row, device_name: value })} />
+              <Field label="Device Name" v={row.device_name} onChange={(value) => setRow({ ...row, device_name: value })} placeholder="E2-HS-KFHH-..." />
+            </FieldGroup>
+
+            <FieldGroup title="الحالة والشبكة">
               <Select label="Lifecycle Stage" v={row.lifecycle_stage} opts={LIFECYCLE} onChange={(value) => setRow({ ...row, lifecycle_stage: value })} />
               <Select label="Device Age" v={row.device_age} opts={AGE} onChange={(value) => setRow({ ...row, device_age: value })} />
               <Select label="Connection Type" v={row.connection_type} opts={CONNECTION} onChange={(value) => setRow({ ...row, connection_type: value })} />
               <Select label="In MOH Domain" v={row.in_moh_domain} opts={YESNO} onChange={(value) => setRow({ ...row, in_moh_domain: value })} />
               <Select label="Admin Local User" v={row.admin_local_user} opts={YESNO_LC} onChange={(value) => setRow({ ...row, admin_local_user: value })} />
               <Select label="Has Antivirus" v={row.has_antivirus} opts={YESNO_LC} onChange={(value) => setRow({ ...row, has_antivirus: value })} />
-              <Field label="Programming" v={row.programming} onChange={(value) => setRow({ ...row, programming: value })} />
               <Select label="Clean Device" v={row.clean_device} opts={CLEAN} onChange={(value) => setRow({ ...row, clean_device: value })} />
-              <Select label="IP Static or Dynamic" v={row.ip_type} opts={IP_TYPE} onChange={(value) => setRow({ ...row, ip_type: value })} />
+              <Select label="IP Type" v={row.ip_type} opts={IP_TYPE} onChange={(value) => setRow({ ...row, ip_type: value })} />
+              <Field label="Programming" v={row.programming} onChange={(value) => setRow({ ...row, programming: value })} />
+            </FieldGroup>
+
+            <FieldGroup title="المواصفات">
               <Select label="Windows Version" v={row.windows_version} opts={WINDOWS} onChange={(value) => setRow({ ...row, windows_version: value })} />
               <Select label="Processor" v={row.processor} opts={PROCESSORS} onChange={(value) => setRow({ ...row, processor: value })} />
+              <Select label="RAM" v={row.ram} opts={RAM_OPT} onChange={(value) => setRow({ ...row, ram: value })} />
               <Select label="HDD" v={row.hdd} opts={STORAGE_OPT} onChange={(value) => setRow({ ...row, hdd: value })} />
               <Select label="SSD" v={row.ssd} opts={STORAGE_OPT} onChange={(value) => setRow({ ...row, ssd: value })} />
-              <Select label="RAM" v={row.ram} opts={RAM_OPT} onChange={(value) => setRow({ ...row, ram: value })} />
+            </FieldGroup>
+
+            <FieldGroup title="ملاحظات ومتابعة" last>
               <Field label="ملاحظات" v={row.notes} onChange={(value) => setRow({ ...row, notes: value })} rtl />
               <Field label="Update" v={row.update} onChange={(value) => setRow({ ...row, update: value })} />
               <Field label="Need" v={row.need} onChange={(value) => setRow({ ...row, need: value })} />
               <Select label="Solution By" v={row.solution_by} opts={SOLUTION_BY} onChange={(value) => setRow({ ...row, solution_by: value })} />
-            </div>
+            </FieldGroup>
+
             <div className="mt-5 flex flex-wrap gap-3">
-              <button onClick={save} className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                <Save className="h-4 w-4" />
-                حفظ محلي
-              </button>
               <button
                 onClick={saveToSheet}
                 disabled={savingSheet}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
               >
                 <FileSpreadsheet className="h-4 w-4" />
-                {savingSheet ? "جاري الإرسال..." : "حفظ وإرسال للشيت"}
+                {savingSheet ? "جاري الإرسال..." : "إرسال للشيت"}
+              </button>
+              <button onClick={save} className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+                <Save className="h-4 w-4" />
+                حفظ محلي فقط
               </button>
               <button onClick={() => setRow(empty)} className="rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
                 مسح البيانات
@@ -657,25 +755,13 @@ function Index() {
                     {saved.map((savedRow, index) => (
                       <tr key={`${savedRow.serial_number}-${index}`} className="border-b last:border-b-0">
                         <td className="p-2">{index + 1}</td>
-                        <td className="p-2" dir="ltr">
-                          {savedRow.ministry_tag}
-                        </td>
-                        <td className="p-2" dir="ltr">
-                          {savedRow.device_type}
-                        </td>
-                        <td className="p-2" dir="ltr">
-                          {savedRow.manufacturer}
-                        </td>
-                        <td className="p-2" dir="ltr">
-                          {savedRow.serial_number}
-                        </td>
+                        <td className="p-2" dir="ltr">{savedRow.ministry_tag}</td>
+                        <td className="p-2" dir="ltr">{savedRow.device_type}</td>
+                        <td className="p-2" dir="ltr">{savedRow.manufacturer}</td>
+                        <td className="p-2" dir="ltr">{savedRow.serial_number}</td>
                         <td className="p-2">{savedRow.location}</td>
-                        <td className="p-2" dir="ltr">
-                          {savedRow.windows_version}
-                        </td>
-                        <td className="p-2" dir="ltr">
-                          {savedRow.ram}
-                        </td>
+                        <td className="p-2" dir="ltr">{savedRow.windows_version}</td>
+                        <td className="p-2" dir="ltr">{savedRow.ram}</td>
                         <td className="p-2">
                           <button onClick={() => removeSaved(index)} className="inline-flex items-center gap-1 text-destructive hover:underline">
                             <Trash2 className="h-3.5 w-3.5" />
@@ -695,27 +781,11 @@ function Index() {
   );
 }
 
-function QualityPanel({ quality }: { quality: Quality }) {
-  const label = quality.status === "good" ? "ممتازة" : quality.status === "medium" ? "متوسطة" : "ضعيفة";
+function FieldGroup({ title, children, last }: { title: string; children: React.ReactNode; last?: boolean }) {
   return (
-    <div className="rounded-lg border bg-background p-3 text-xs">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="font-semibold">جودة الصورة: {label}</span>
-        <span dir="ltr" className="tabular-nums">
-          {quality.score}%
-        </span>
-      </div>
-      <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-primary" style={{ width: `${quality.score}%` }} />
-      </div>
-      <p className="text-muted-foreground" dir="ltr">
-        {quality.width}×{quality.height}px · {quality.sizeKb}KB
-      </p>
-      <ul className="mt-2 space-y-1 text-muted-foreground">
-        {quality.notes.map((note) => (
-          <li key={note}>• {note}</li>
-        ))}
-      </ul>
+    <div className={last ? "" : "mb-5 border-b pb-5"}>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
     </div>
   );
 }
@@ -747,9 +817,7 @@ function ExtractionSummary({ data }: { data: Partial<AssetRow> }) {
           {items.map(([label, value]) => (
             <div key={label} className="rounded-md border bg-background p-3">
               <p className="text-[11px] text-muted-foreground">{label}</p>
-              <p className="mt-1 font-semibold" dir="ltr">
-                {value}
-              </p>
+              <p className="mt-1 font-semibold" dir="ltr">{value}</p>
             </div>
           ))}
         </div>
@@ -786,9 +854,7 @@ function Select({ label, v, opts, onChange }: { label: string; v: string; opts: 
       >
         <option value=""></option>
         {merged.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
+          <option key={option} value={option}>{option}</option>
         ))}
       </select>
     </label>
