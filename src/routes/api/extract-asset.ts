@@ -74,10 +74,11 @@ STRICT VALIDATION (silent, before answering):
                 {
                   role: "user",
                   content: [
-                    { type: "text", text: "Extract the fields from this KFH device label photo. Follow all rules. Return raw JSON only." },
-                    { type: "image_url", image_url: { url: imageDataUrl } },
+                    { type: "text", text: `Extract the fields from these ${valid.length} KFH device photo(s). They may show the same device from different angles (chassis, label, BIOS/About screen). Merge into a single JSON answer. Follow all rules. Return raw JSON only.` },
+                    ...valid.map((url) => ({ type: "image_url" as const, image_url: { url } })),
                   ],
                 },
+
               ],
             }),
           });
