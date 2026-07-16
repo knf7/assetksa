@@ -5,12 +5,17 @@ export const Route = createFileRoute("/api/extract-asset")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const { imageDataUrl } = (await request.json()) as { imageDataUrl: string };
-          if (!imageDataUrl?.startsWith("data:image/")) {
+          const body = (await request.json()) as { imageDataUrl?: string; imageDataUrls?: string[] };
+          const images = (body.imageDataUrls && body.imageDataUrls.length > 0)
+            ? body.imageDataUrls
+            : body.imageDataUrl ? [body.imageDataUrl] : [];
+          const valid = images.filter((u) => typeof u === "string" && u.startsWith("data:image/"));
+          if (valid.length === 0) {
             return Response.json({ error: "Invalid image data" }, { status: 400 });
           }
           const key = process.env.LOVABLE_API_KEY;
           if (!key) return Response.json({ error: "Missing LOVABLE_API_KEY" }, { status: 500 });
+
 
           const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
