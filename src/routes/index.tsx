@@ -285,6 +285,7 @@ function Index() {
   const [sheetInput, setSheetInput] = useState("");
   const [sheetName, setSheetName] = useState(DEFAULT_SHEET_NAME);
   const [showSheetSettings, setShowSheetSettings] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [locHistory, setLocHistory] = useState<string[]>([]);
   const [deptHistory, setDeptHistory] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
