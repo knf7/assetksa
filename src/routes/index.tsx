@@ -66,6 +66,7 @@ type Quality = {
   width: number;
   height: number;
   sizeKb: number;
+  originalSizeKb?: number;
   notes: string[];
 };
 
@@ -224,43 +225,78 @@ function extractSpreadsheetId(input: string) {
   return match?.[1] || trimmed;
 }
 
-function scoreQuality(file: File, width: number, height: number): Quality {
+function scoreQuality(file: File, width: number, height: number, preparedSize = file.size): Quality {
   const notes: string[] = [];
   let score = 100;
   const shortest = Math.min(width, height);
   const longest = Math.max(width, height);
-  if (shortest < 900) { score -= 35; notes.push("الدقة منخفضة؛ قرّب الكاميرا من الملصق."); }
-  if (longest < 1400) { score -= 15; notes.push("الصورة صغيرة وقد تفقد تفاصيل الباركود."); }
+  if (shortest < 700) { score -= 35; notes.push("الدقة منخفضة؛ قرّب الكاميرا من الملصق."); }
+  if (longest < 1100) { score -= 15; notes.push("الصورة صغيرة وقد تفقد تفاصيل الباركود."); }
   if (file.size < 180 * 1024) { score -= 20; notes.push("حجم الصورة صغير؛ قد تكون مضغوطة بقوة."); }
-  if (file.size > 9 * 1024 * 1024) { score -= 10; notes.push("الصورة كبيرة؛ التحليل قد يكون أبطأ."); }
+  if (file.size > 9 * 1024 * 1024) { notes.push("تم ضغط صورة الجوال قبل التحليل لتقليل الأخطاء."); }
   if (notes.length === 0) notes.push("الجودة مناسبة للتحليل.");
   const bounded = Math.max(0, Math.min(100, score));
   return {
     score: bounded,
     status: bounded >= 75 ? "good" : bounded >= 50 ? "medium" : "bad",
-    width, height, sizeKb: Math.round(file.size / 1024), notes,
+    width,
+    height,
+    sizeKb: Math.round(preparedSize / 1024),
+    originalSizeKb: Math.round(file.size / 1024),
+    notes,
   };
 }
 
-function readFileAsImage(file: File): Promise<ImageItem> {
+function canvasToDataUrl(canvas: HTMLCanvasElement, quality = 0.86): string {
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function preparePhoto(file: File): Promise<{ dataUrl: string; width: number; height: number; size: number }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(reader.error);
     reader.onload = () => {
-      const dataUrl = reader.result as string;
+      const rawDataUrl = reader.result as string;
       const img = new Image();
       img.onload = () => {
-        resolve({
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          dataUrl,
-          quality: scoreQuality(file, img.naturalWidth, img.naturalHeight),
-        });
+        const maxSide = 1800;
+        const longest = Math.max(img.naturalWidth, img.naturalHeight);
+        const scale = longest > maxSide ? maxSide / longest : 1;
+        const width = Math.max(1, Math.round(img.naturalWidth * scale));
+        const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+        if (scale === 1 && file.size <= 1_800_000 && rawDataUrl.startsWith("data:image/")) {
+          resolve({ dataUrl: rawDataUrl, width, height, size: file.size });
+          return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve({ dataUrl: rawDataUrl, width: img.naturalWidth, height: img.naturalHeight, size: file.size });
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvasToDataUrl(canvas);
+        const base64Length = dataUrl.split(",")[1]?.length ?? 0;
+        const approxSize = Math.round((base64Length * 3) / 4);
+        resolve({ dataUrl, width, height, size: approxSize });
       };
-      img.onerror = () => reject(new Error("تعذر قراءة الصورة"));
-      img.src = dataUrl;
+      img.onerror = () => reject(new Error("تعذر قراءة الصورة. جرّب صورة JPG أو PNG واضحة."));
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   });
+}
+
+function readFileAsImage(file: File): Promise<ImageItem> {
+  return preparePhoto(file).then((prepared) => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    dataUrl: prepared.dataUrl,
+    quality: scoreQuality(file, prepared.width, prepared.height, prepared.size),
+  }));
 }
 
 function loadList(key: string): string[] {
@@ -270,6 +306,25 @@ function loadList(key: string): string[] {
     const arr = JSON.parse(raw);
     return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
   } catch { return []; }
+}
+
+function formatApiError(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as { error?: { message?: string; metadata?: { raw?: string } } };
+    const providerRaw = parsed.error?.metadata?.raw;
+    if (providerRaw) {
+      try {
+        const provider = JSON.parse(providerRaw) as { error?: { message?: string } };
+        if (provider.error?.message) return `تعذر تحليل الصورة: ${provider.error.message}`;
+      } catch {}
+    }
+    if (parsed.error?.message) return parsed.error.message;
+  } catch {}
+  if (raw.includes("Unable to process input image")) {
+    return "تعذر تحليل صيغة الصورة. جرّب حذفها والتقاط صورة JPG واضحة أو ارفع صورة أخرى.";
+  }
+  if (raw.includes("LOVABLE_API_KEY")) return "مفتاح الذكاء غير متوفر حالياً.";
+  return raw;
 }
 
 function Index() {
@@ -355,19 +410,21 @@ function Index() {
   async function analyze() {
     if (images.length === 0) return;
     const worst = images.reduce((acc, cur) => (cur.quality.score < acc.quality.score ? cur : acc), images[0]);
-    if (worst.quality.status === "bad") {
-      setError("توجد صورة جودتها ضعيفة. احذفها أو أعد التصوير قبل التحليل.");
-      return;
-    }
-    setLoading(true); setError(null); setNotice(null);
+    setLoading(true); setError(null);
+    setNotice(worst.quality.status === "bad" ? "جودة صورة واحدة ضعيفة، لكن سأحللها الآن وأعرض أي نتيجة ممكنة." : null);
     try {
       const res = await fetch("/api/extract-asset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageDataUrls: images.map((i) => i.dataUrl) }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      const responseText = await res.text();
+      let data: Record<string, unknown> = {};
+      try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { error: responseText }; }
+      if (!res.ok) {
+        const rawError = String(data.error || responseText || "فشل التحليل");
+        throw new Error(formatApiError(rawError));
+      }
       bumpScans();
       const aiKeys = [
         "ministry_tag","device_type","manufacturer","serial_number","mac_address",
@@ -379,8 +436,11 @@ function Index() {
         return v.length > 0 && v.toUpperCase() !== "N/A";
       });
       if (filled.length === 0) {
-        const debug = data._debug ? `\n\nرد الذكاء الاصطناعي:\n${(data._debug.raw || "(فارغ)").slice(0, 500)}` : "";
-        throw new Error("لم يتم استخراج أي بيانات من الصور. تأكد من وضوح الملصق والإضاءة." + debug);
+        const debugObj = data._debug as { raw?: string } | undefined;
+        const debug = debugObj ? `\n\nرد الذكاء الاصطناعي:\n${(debugObj.raw || "(فارغ)").slice(0, 500)}` : "";
+        setLastExtracted(data as Partial<AssetRow>);
+        setNotice("تم التحليل لكن لم تظهر قراءة مؤكدة. عبّئ الحقول الأساسية يدويًا أو أضف صورة أقرب للملصق." + debug);
+        return;
       }
       const useIfReal = (v: unknown, fallback: string) => {
         const s = (v ?? "").toString().trim();
