@@ -308,6 +308,25 @@ function loadList(key: string): string[] {
   } catch { return []; }
 }
 
+function formatApiError(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as { error?: { message?: string; metadata?: { raw?: string } } };
+    const providerRaw = parsed.error?.metadata?.raw;
+    if (providerRaw) {
+      try {
+        const provider = JSON.parse(providerRaw) as { error?: { message?: string } };
+        if (provider.error?.message) return `تعذر تحليل الصورة: ${provider.error.message}`;
+      } catch {}
+    }
+    if (parsed.error?.message) return parsed.error.message;
+  } catch {}
+  if (raw.includes("Unable to process input image")) {
+    return "تعذر تحليل صيغة الصورة. جرّب حذفها والتقاط صورة JPG واضحة أو ارفع صورة أخرى.";
+  }
+  if (raw.includes("LOVABLE_API_KEY")) return "مفتاح الذكاء غير متوفر حالياً.";
+  return raw;
+}
+
 function Index() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [row, setRow] = useState<AssetRow>(makeEmpty);
@@ -417,7 +436,8 @@ function Index() {
         return v.length > 0 && v.toUpperCase() !== "N/A";
       });
       if (filled.length === 0) {
-        const debug = data._debug ? `\n\nرد الذكاء الاصطناعي:\n${(data._debug.raw || "(فارغ)").slice(0, 500)}` : "";
+        const debugObj = data._debug as { raw?: string } | undefined;
+        const debug = debugObj ? `\n\nرد الذكاء الاصطناعي:\n${(debugObj.raw || "(فارغ)").slice(0, 500)}` : "";
         setLastExtracted(data as Partial<AssetRow>);
         setNotice("تم التحليل لكن لم تظهر قراءة مؤكدة. عبّئ الحقول الأساسية يدويًا أو أضف صورة أقرب للملصق." + debug);
         return;
