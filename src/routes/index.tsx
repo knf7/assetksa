@@ -285,6 +285,7 @@ function Index() {
   const [sheetInput, setSheetInput] = useState("");
   const [sheetName, setSheetName] = useState(DEFAULT_SHEET_NAME);
   const [showSheetSettings, setShowSheetSettings] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [locHistory, setLocHistory] = useState<string[]>([]);
   const [deptHistory, setDeptHistory] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -633,7 +634,7 @@ function Index() {
               <span className="rounded-md bg-muted px-2 py-1 text-[10px] text-muted-foreground sm:text-xs">راجع قبل الحفظ</span>
             </div>
 
-            <FieldGroup title="الموقع والصيانة">
+            <FieldGroup title="الأساسيات">
               <Field
                 label="Department (القسم)"
                 v={row.department}
@@ -668,45 +669,63 @@ function Index() {
                   </div>
                 </div>
               )}
-              <Field label="Last Maintenance" v={row.last_maintenance} onChange={(v) => setRow({ ...row, last_maintenance: v })} placeholder="dd/mm/yyyy" />
-              <Field label="Next Maintenance" v={row.next_maintenance} onChange={(v) => setRow({ ...row, next_maintenance: v })} placeholder="dd/mm/yyyy" />
-            </FieldGroup>
-
-            <FieldGroup title="هوية الجهاز">
               <Field label="Ministry Tag" v={row.ministry_tag} onChange={(v) => setRow({ ...row, ministry_tag: v })} />
               <Select label="Device Type" v={row.device_type} opts={DEVICE_TYPES} onChange={(v) => setRow({ ...row, device_type: v })} />
               <Select label="Manufacturer" v={row.manufacturer} opts={MANUFACTURERS} onChange={(v) => setRow({ ...row, manufacturer: v })} />
               <Field label="Serial Number" v={row.serial_number} onChange={(v) => setRow({ ...row, serial_number: v })} />
-              <Field label="MAC Address" v={row.mac_address} onChange={(v) => setRow({ ...row, mac_address: v })} placeholder="XX-XX-XX-XX-XX-XX" />
-              <Field label="Device Name" v={row.device_name} onChange={(v) => setRow({ ...row, device_name: v })} placeholder="E2-HS-KFHH-..." />
             </FieldGroup>
 
-            <FieldGroup title="الحالة والشبكة">
-              <Select label="Lifecycle Stage" v={row.lifecycle_stage} opts={LIFECYCLE} onChange={(v) => setRow({ ...row, lifecycle_stage: v })} />
-              <Select label="Device Age" v={row.device_age} opts={AGE} onChange={(v) => setRow({ ...row, device_age: v })} />
-              <Select label="Connection Type" v={row.connection_type} opts={CONNECTION} onChange={(v) => setRow({ ...row, connection_type: v })} />
-              <Select label="In MOH Domain" v={row.in_moh_domain} opts={YESNO_UP} onChange={(v) => setRow({ ...row, in_moh_domain: v })} />
-              <Select label="Admin Local User" v={row.admin_local_user} opts={YESNO} onChange={(v) => setRow({ ...row, admin_local_user: v })} />
-              <Select label="Has Antivirus" v={row.has_antivirus} opts={YESNO} onChange={(v) => setRow({ ...row, has_antivirus: v })} />
-              <Select label="Clean Device" v={row.clean_device} opts={CLEAN} onChange={(v) => setRow({ ...row, clean_device: v })} />
-              <Select label="IP Type" v={row.ip_type} opts={IP_TYPE} onChange={(v) => setRow({ ...row, ip_type: v })} />
-              <Select label="Programming" v={row.programming} opts={PROGRAMMING_OPT} onChange={(v) => setRow({ ...row, programming: v })} />
-            </FieldGroup>
+            <div className="mb-4 border-b pb-4 sm:mb-5 sm:pb-5">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex w-full items-center justify-between rounded-md border bg-muted/40 px-3 py-2.5 text-sm font-medium hover:bg-muted"
+              >
+                <span>حقول إضافية (اختيارية — تبقى N/A تلقائياً)</span>
+                <span className="text-xs text-muted-foreground">{showAdvanced ? "إخفاء ▲" : "عرض ▼"}</span>
+              </button>
+            </div>
 
-            <FieldGroup title="المواصفات">
-              <Select label="Windows Version" v={row.windows_version} opts={WINDOWS} onChange={(v) => setRow({ ...row, windows_version: v })} />
-              <Select label="Processor" v={row.processor} opts={PROCESSORS} onChange={(v) => setRow({ ...row, processor: v })} />
-              <Select label="RAM" v={row.ram} opts={RAM_OPT} onChange={(v) => setRow({ ...row, ram: v })} />
-              <Select label="HDD" v={row.hdd} opts={HDD_OPT} onChange={(v) => setRow({ ...row, hdd: v })} />
-              <Select label="SSD" v={row.ssd} opts={SSD_OPT} onChange={(v) => setRow({ ...row, ssd: v })} />
-            </FieldGroup>
+            {showAdvanced && (
+              <>
+                <FieldGroup title="الصيانة">
+                  <Field label="Last Maintenance" v={row.last_maintenance} onChange={(v) => setRow({ ...row, last_maintenance: v })} placeholder="dd/mm/yyyy" />
+                  <Field label="Next Maintenance" v={row.next_maintenance} onChange={(v) => setRow({ ...row, next_maintenance: v })} placeholder="dd/mm/yyyy" />
+                </FieldGroup>
 
-            <FieldGroup title="ملاحظات ومتابعة" last>
-              <Field label="ملاحظات" v={row.notes} onChange={(v) => setRow({ ...row, notes: v })} rtl />
-              <Field label="Update" v={row.update} onChange={(v) => setRow({ ...row, update: v })} />
-              <Field label="Need" v={row.need} onChange={(v) => setRow({ ...row, need: v })} />
-              <Select label="Solution By" v={row.solution_by} opts={SOLUTION_BY} onChange={(v) => setRow({ ...row, solution_by: v })} />
-            </FieldGroup>
+                <FieldGroup title="هوية إضافية">
+                  <Field label="MAC Address" v={row.mac_address} onChange={(v) => setRow({ ...row, mac_address: v })} placeholder="XX-XX-XX-XX-XX-XX" />
+                  <Field label="Device Name" v={row.device_name} onChange={(v) => setRow({ ...row, device_name: v })} placeholder="E2-HS-KFHH-..." />
+                </FieldGroup>
+
+                <FieldGroup title="الحالة والشبكة">
+                  <Select label="Lifecycle Stage" v={row.lifecycle_stage} opts={LIFECYCLE} onChange={(v) => setRow({ ...row, lifecycle_stage: v })} />
+                  <Select label="Device Age" v={row.device_age} opts={AGE} onChange={(v) => setRow({ ...row, device_age: v })} />
+                  <Select label="Connection Type" v={row.connection_type} opts={CONNECTION} onChange={(v) => setRow({ ...row, connection_type: v })} />
+                  <Select label="In MOH Domain" v={row.in_moh_domain} opts={YESNO_UP} onChange={(v) => setRow({ ...row, in_moh_domain: v })} />
+                  <Select label="Admin Local User" v={row.admin_local_user} opts={YESNO} onChange={(v) => setRow({ ...row, admin_local_user: v })} />
+                  <Select label="Has Antivirus" v={row.has_antivirus} opts={YESNO} onChange={(v) => setRow({ ...row, has_antivirus: v })} />
+                  <Select label="Clean Device" v={row.clean_device} opts={CLEAN} onChange={(v) => setRow({ ...row, clean_device: v })} />
+                  <Select label="IP Type" v={row.ip_type} opts={IP_TYPE} onChange={(v) => setRow({ ...row, ip_type: v })} />
+                  <Select label="Programming" v={row.programming} opts={PROGRAMMING_OPT} onChange={(v) => setRow({ ...row, programming: v })} />
+                </FieldGroup>
+
+                <FieldGroup title="المواصفات">
+                  <Select label="Windows Version" v={row.windows_version} opts={WINDOWS} onChange={(v) => setRow({ ...row, windows_version: v })} />
+                  <Select label="Processor" v={row.processor} opts={PROCESSORS} onChange={(v) => setRow({ ...row, processor: v })} />
+                  <Select label="RAM" v={row.ram} opts={RAM_OPT} onChange={(v) => setRow({ ...row, ram: v })} />
+                  <Select label="HDD" v={row.hdd} opts={HDD_OPT} onChange={(v) => setRow({ ...row, hdd: v })} />
+                  <Select label="SSD" v={row.ssd} opts={SSD_OPT} onChange={(v) => setRow({ ...row, ssd: v })} />
+                </FieldGroup>
+
+                <FieldGroup title="ملاحظات ومتابعة" last>
+                  <Field label="ملاحظات" v={row.notes} onChange={(v) => setRow({ ...row, notes: v })} rtl />
+                  <Field label="Update" v={row.update} onChange={(v) => setRow({ ...row, update: v })} />
+                  <Field label="Need" v={row.need} onChange={(v) => setRow({ ...row, need: v })} />
+                  <Select label="Solution By" v={row.solution_by} opts={SOLUTION_BY} onChange={(v) => setRow({ ...row, solution_by: v })} />
+                </FieldGroup>
+              </>
+            )}
 
             <div className="sticky bottom-0 -mx-3 mt-5 flex flex-wrap gap-2 border-t bg-card/95 px-3 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pt-4">
               <button
