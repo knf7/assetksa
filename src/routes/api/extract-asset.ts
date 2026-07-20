@@ -52,7 +52,17 @@ Return EXACTLY these keys (all strings). If a value is not clearly visible in an
  "connection_type":"N/A",
  "ip_type":"N/A",
  "in_moh_domain":"N/A",
- "lifecycle_stage":"In Use"
+ "lifecycle_stage":"In Use",
+ "device_age":"N/A",
+ "last_maintenance":"N/A",
+ "next_maintenance":"N/A",
+ "admin_local_user":"N/A",
+ "has_antivirus":"N/A",
+ "programming":"N/A",
+ "clean_device":"N/A",
+ "update":"N/A",
+ "need":"N/A",
+ "notes":""
 }
 
 CORE fields (leave "" — NOT "N/A" — when unreadable, so the user knows to fill them):
@@ -70,6 +80,9 @@ ENUMS — you MUST pick from these exact strings (case-sensitive):
 - ip_type: "Dynamic" | "Static" | "N/A"
 - in_moh_domain: "YES" | "No" | "N/A"
 - lifecycle_stage: "In Use"
+- device_age: "Less Then 10 Years" | "More Then 10 Years" | "N/A"
+- clean_device: "No Need" | "N/A"
+- has_antivirus: "YES" | "No" | "N/A"
 
 FIELD RULES:
 - ministry_tag: MOH inventory tag on the yellow/white MOH sticker. Usually starts with "AHC…" or is a long alphanumeric code. Labeled "MOH", "Asset Tag", "رقم الأصل". NEVER equals serial_number.
@@ -120,7 +133,7 @@ Return ONE JSON object. Nothing else.`,
           } catch (e) { 
             parseError = (e as Error).message; 
             // Fallback for truncated JSON
-            const fallbackKeys = ["ministry_tag","device_type","manufacturer","serial_number","mac_address","device_name","processor","windows_version","ram","hdd","ssd","connection_type","ip_type","in_moh_domain","lifecycle_stage"];
+            const fallbackKeys = ["ministry_tag","device_type","manufacturer","serial_number","mac_address","device_name","processor","windows_version","ram","hdd","ssd","connection_type","ip_type","in_moh_domain","lifecycle_stage","device_age","last_maintenance","next_maintenance","admin_local_user","has_antivirus","programming","clean_device","update","need","notes"];
             for (const k of fallbackKeys) {
               const regex = new RegExp(`"${k}"\\s*:\\s*"([^"]*)"`);
               const m = cleaned.match(regex);
@@ -132,6 +145,8 @@ Return ONE JSON object. Nothing else.`,
             "ministry_tag","device_type","manufacturer","serial_number","mac_address",
             "device_name","processor","windows_version","ram","hdd","ssd",
             "connection_type","ip_type","in_moh_domain","lifecycle_stage",
+            "device_age","last_maintenance","next_maintenance","admin_local_user",
+            "has_antivirus","programming","clean_device","update","need","notes"
           ] as const;
           const coreKeys = new Set(["ministry_tag","device_type","manufacturer","serial_number"]);
           const out: Record<string, string> = {};

@@ -457,6 +457,8 @@ function Index() {
         "ministry_tag","device_type","manufacturer","serial_number","mac_address",
         "processor","windows_version","ram","hdd","ssd","device_name",
         "connection_type","ip_type","in_moh_domain","lifecycle_stage",
+        "device_age","last_maintenance","next_maintenance","admin_local_user",
+        "has_antivirus","programming","clean_device","update","need","notes"
       ];
       const filled = aiKeys.filter((k) => {
         const v = (data[k] ?? "").toString().trim();
@@ -490,6 +492,16 @@ function Index() {
         ip_type: useIfReal(data.ip_type, current.ip_type),
         in_moh_domain: useIfReal(data.in_moh_domain, current.in_moh_domain),
         lifecycle_stage: useIfReal(data.lifecycle_stage, current.lifecycle_stage),
+        device_age: useIfReal(data.device_age, current.device_age),
+        last_maintenance: useIfReal(data.last_maintenance, current.last_maintenance),
+        next_maintenance: useIfReal(data.next_maintenance, current.next_maintenance),
+        admin_local_user: useIfReal(data.admin_local_user, current.admin_local_user),
+        has_antivirus: useIfReal(data.has_antivirus, current.has_antivirus),
+        programming: useIfReal(data.programming, current.programming),
+        clean_device: useIfReal(data.clean_device, current.clean_device),
+        update: useIfReal(data.update, current.update),
+        need: useIfReal(data.need, current.need),
+        notes: useIfReal(data.notes, current.notes),
       }));
       setLastExtracted(data as Partial<AssetRow>);
       setNotice(`تمت إضافة البيانات المتاحة. يرجى التأكد احتياطاً، ودائماً شغّل ذكاء آخر للتحقق من النتيجة.`);
