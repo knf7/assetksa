@@ -161,15 +161,15 @@
     @apply bg-white/50 dark:bg-black/50 backdrop-blur-md border border-white/30 dark:border-white/10 focus:bg-white/80 dark:focus:bg-black/80 transition-all duration-300;
   }
 
-  /* Animated Gradient Background */
+  /* Animated Gradient Background - Light Sky Blue */
   .bg-animated-gradient {
-    background: linear-gradient(-45deg, #4f46e5, #9333ea, #3b82f6, #ec4899);
+    background: linear-gradient(-45deg, #e0f2fe, #bae6fd, #f0f9ff, #e0f2fe);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
   }
 
   .dark .bg-animated-gradient {
-    background: linear-gradient(-45deg, #1e1b4b, #4c1d95, #172554, #831843);
+    background: linear-gradient(-45deg, #0f172a, #0c4a6e, #1e3a8a, #0f172a);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
   }
