@@ -458,7 +458,7 @@ function Index() {
         const debugObj = data._debug as { raw?: string } | undefined;
         const debug = debugObj ? `\n\nرد الذكاء الاصطناعي:\n${(debugObj.raw || "(فارغ)").slice(0, 500)}` : "";
         setLastExtracted(data as Partial<AssetRow>);
-        setNotice("تم التحليل لكن لم تظهر قراءة مؤكدة. عبّئ الحقول الأساسية يدويًا أو أضف صورة أقرب للملصق." + debug);
+        setNotice("لم تظهر قراءة مؤكدة. يرجى التأكد احتياطاً، ودائماً شغّل ذكاء آخر للتحقق من النتيجة." + debug);
         return;
       }
       const useIfReal = (v: unknown, fallback: string) => {
@@ -484,7 +484,7 @@ function Index() {
         lifecycle_stage: useIfReal(data.lifecycle_stage, current.lifecycle_stage),
       }));
       setLastExtracted(data as Partial<AssetRow>);
-      setNotice(`تم استخراج ${filled.length} حقل من ${images.length} صورة. راجعها قبل الحفظ.`);
+      setNotice(`تمت إضافة البيانات المتاحة. يرجى التأكد احتياطاً، ودائماً شغّل ذكاء آخر للتحقق من النتيجة.`);
     } catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
   }

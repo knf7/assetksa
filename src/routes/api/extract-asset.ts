@@ -115,7 +115,18 @@ Return ONE JSON object. Nothing else.`,
           if (match) cleaned = match[0];
           let parsed: Record<string, unknown> = {};
           let parseError: string | null = null;
-          try { parsed = JSON.parse(cleaned); } catch (e) { parseError = (e as Error).message; }
+          try { 
+            parsed = JSON.parse(cleaned); 
+          } catch (e) { 
+            parseError = (e as Error).message; 
+            // Fallback for truncated JSON
+            const fallbackKeys = ["ministry_tag","device_type","manufacturer","serial_number","mac_address","device_name","processor","windows_version","ram","hdd","ssd","connection_type","ip_type","in_moh_domain","lifecycle_stage"];
+            for (const k of fallbackKeys) {
+              const regex = new RegExp(`"${k}"\\s*:\\s*"([^"]*)"`);
+              const m = cleaned.match(regex);
+              if (m) parsed[k] = m[1];
+            }
+          }
 
           const keys = [
             "ministry_tag","device_type","manufacturer","serial_number","mac_address",
