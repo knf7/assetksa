@@ -950,7 +950,7 @@ function Index() {
               </>
             )}
 
-            <div className="sticky bottom-0 -mx-3 mt-5 flex flex-wrap gap-2 border-t bg-card/95 px-3 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pt-4">
+            <div className="sticky bottom-0 -mx-4 mt-5 flex flex-wrap gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pt-4">
               <button
                 onClick={saveToSheet}
                 disabled={savingSheet}
@@ -997,7 +997,7 @@ function Index() {
             {saved.length === 0 ? (
               <p className="rounded-lg border border-dashed bg-muted/50 p-4 text-center text-xs text-muted-foreground sm:text-sm">لا توجد صفوف بعد.</p>
             ) : (
-              <div className="-mx-3 overflow-x-auto sm:mx-0">
+              <div className="-mx-4 overflow-x-auto sm:mx-0 px-4 sm:px-0">
                 <table className="w-full min-w-[600px] text-xs">
                   <thead className="bg-muted">
                     <tr className="border-b text-right">
