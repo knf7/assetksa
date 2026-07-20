@@ -37,7 +37,7 @@ Allowed keys in the JSON:
 Rules:
 1. ONLY return the keys that the user explicitly mentioned or strongly implied in their text. If a field is not mentioned, DO NOT include it in the JSON at all.
 2. If the user mentions notes, issues, or missing parts (e.g. "مافي ماوس", "شاشته مكسورة"), put them in the "notes" field.
-3. If the user mentions the device is "مستخدم" (in use), set "lifecycle_stage": "In Use". If "جديد" or similar, map to notes if there isn't an exact match.
+3. If the user mentions the device is "مستخدم" (in use), set "lifecycle_stage": "In Use". If they mention "غير مستخدم", "فاضي", "متروك" (not in use), set "lifecycle_stage": "Not In Use".
 4. If the user specifies the department (e.g. "عيادة العظام", "الطوارئ"), set "department".
 5. If the user specifies the floor (e.g. "الدور الأول", "البدروم"), set "floor".
 6. If the user specifies the room/location (e.g. "غرفة 102", "عند الدكتور أحمد"), set "location".
