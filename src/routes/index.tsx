@@ -654,7 +654,7 @@ function Index() {
   const recentLocations = useMemo(() => locHistory.slice(0, 6), [locHistory]);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-animated-gradient text-foreground relative">
+    <div dir="rtl" className="min-h-screen bg-animated-gradient text-foreground relative overflow-x-hidden">
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4 rounded-xl bg-card p-6 shadow-lg border">
