@@ -835,7 +835,7 @@ function Index() {
                 <button
                   onClick={runQA}
                   disabled={qaLoading}
-                  className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
                 >
                   {qaLoading ? "جاري التحقق..." : "شغّل وكيل التحقق"}
                 </button>
