@@ -354,6 +354,8 @@ function Index() {
   const [syncTrigger, setSyncTrigger] = useState(0);
   const [qaResult, setQaResult] = useState<QAResult | null>(null);
   const [qaLoading, setQaLoading] = useState(false);
+  const [smartText, setSmartText] = useState("");
+  const [smartLoading, setSmartLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -582,6 +584,37 @@ function Index() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
     finally { setSavingSheet(false); }
+  }
+
+  async function runSmartFill() {
+    if (!smartText.trim()) return;
+    setSmartLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/smart-fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: smartText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل التحليل الذكي");
+      
+      const newFields = data.result || {};
+      const updatedKeys = Object.keys(newFields);
+      if (updatedKeys.length === 0) {
+        setNotice("لم يتم التعرف على أي حقول من النص.");
+        return;
+      }
+      
+      setRow((prev) => ({ ...prev, ...newFields }));
+      setSmartText("");
+      setNotice(`تم تعبئة الحقول التالية: ${updatedKeys.join(", ")}`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSmartLoading(false);
+    }
   }
 
   async function syncPendingAction() {
@@ -850,6 +883,30 @@ function Index() {
               )}
             </section>
           )}
+
+          <section className="glass-panel rounded-2xl p-4 sm:p-6 mb-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold sm:text-lg flex items-center gap-2">
+                <span>الإدخال السريع بالذكاء الاصطناعي 🪄</span>
+              </h2>
+              <span className="rounded-md bg-muted px-2 py-1 text-[10px] text-muted-foreground sm:text-xs">دردشة</span>
+            </div>
+            <div className="flex flex-col gap-3">
+              <textarea
+                value={smartText}
+                onChange={(e) => setSmartText(e.target.value)}
+                placeholder="اكتب هنا ما تلاحظه (مثال: عيادة العظام، الجهاز مستخدم، الشاشة مكسورة...)"
+                className="w-full rounded-lg border bg-background/50 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[80px]"
+              />
+              <button
+                onClick={runSmartFill}
+                disabled={smartLoading || !smartText.trim()}
+                className="self-end inline-flex items-center justify-center rounded-md bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-foreground/90 disabled:opacity-50 transition-colors"
+              >
+                {smartLoading ? "جاري الاستخراج..." : "تعبئة الحقول 🪄"}
+              </button>
+            </div>
+          </section>
 
           <section className="glass-panel rounded-2xl p-4 sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
