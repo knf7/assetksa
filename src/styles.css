@@ -142,3 +142,41 @@
     color: var(--color-foreground);
   }
 }
+
+/* Glassmorphism Utilities */
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
+  }
+  
+  .glass-header {
+    @apply bg-white/60 dark:bg-black/60 backdrop-blur-md border-b border-white/20 dark:border-white/10 shadow-sm;
+  }
+  
+  .glass-button {
+    @apply bg-white/30 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/10 shadow-sm hover:bg-white/50 dark:hover:bg-white/20 transition-all duration-300;
+  }
+  
+  .glass-input {
+    @apply bg-white/50 dark:bg-black/50 backdrop-blur-md border border-white/30 dark:border-white/10 focus:bg-white/80 dark:focus:bg-black/80 transition-all duration-300;
+  }
+
+  /* Animated Gradient Background */
+  .bg-animated-gradient {
+    background: linear-gradient(-45deg, #4f46e5, #9333ea, #3b82f6, #ec4899);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+  }
+
+  .dark .bg-animated-gradient {
+    background: linear-gradient(-45deg, #1e1b4b, #4c1d95, #172554, #831843);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+  }
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

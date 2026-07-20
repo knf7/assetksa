@@ -642,7 +642,7 @@ function Index() {
   const recentLocations = useMemo(() => locHistory.slice(0, 6), [locHistory]);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-background text-foreground relative">
+    <div dir="rtl" className="min-h-screen bg-animated-gradient text-foreground relative">
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4 rounded-xl bg-card p-6 shadow-lg border">
@@ -652,7 +652,7 @@ function Index() {
           </div>
         </div>
       )}
-      <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur">
+      <header className="sticky top-0 z-20 glass-header">
         <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -682,7 +682,7 @@ function Index() {
       <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4 sm:space-y-6">
           <section 
-            className={`rounded-lg border bg-card p-3 shadow-sm sm:p-5 transition-colors ${isDragging ? "border-primary bg-primary/5 ring-2 ring-primary/20" : ""}`}
+            className={`glass-panel rounded-2xl p-4 sm:p-6 transition-colors ${isDragging ? "border-primary bg-primary/20 ring-2 ring-primary/40" : ""}`}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
@@ -768,7 +768,7 @@ function Index() {
             )}
           </section>
 
-          <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
+          <section className="glass-panel rounded-2xl p-4 sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -815,7 +815,7 @@ function Index() {
           {lastExtracted && <ExtractionSummary data={lastExtracted} />}
 
           {lastExtracted && (
-            <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5 mb-4">
+            <section className="glass-panel rounded-2xl p-4 sm:p-6 mb-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-base font-semibold sm:text-lg flex items-center gap-2">
                   <span>وكيل التحقق 🕵️‍♂️</span>
@@ -839,7 +839,7 @@ function Index() {
             </section>
           )}
 
-          <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
+          <section className="glass-panel rounded-2xl p-4 sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold sm:text-lg">مراجعة البيانات</h2>
               <span className="rounded-md bg-muted px-2 py-1 text-[10px] text-muted-foreground sm:text-xs">راجع قبل الحفظ</span>
@@ -959,7 +959,7 @@ function Index() {
             </div>
           </section>
 
-          <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
+          <section className="glass-panel rounded-2xl p-4 sm:p-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-semibold sm:text-lg">الصفوف المحفوظة ({saved.length})</h2>
               <div className="flex gap-2">
@@ -1090,7 +1090,7 @@ function Field({
         placeholder={placeholder}
         dir={rtl ? "rtl" : "ltr"}
         list={suggestions && suggestions.length ? listId : undefined}
-        className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+        className="w-full rounded-md glass-input px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/40"
       />
     </label>
   );
@@ -1105,7 +1105,7 @@ function Select({ label, v, opts, onChange }: { label: string; v: string; opts: 
         value={v}
         onChange={(e) => onChange(e.target.value)}
         dir="ltr"
-        className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+        className="w-full rounded-md glass-input px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/40"
       >
         <option value=""></option>
         {merged.map((o) => (
