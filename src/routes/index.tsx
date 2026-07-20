@@ -692,7 +692,7 @@ function Index() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 min-w-0">
           <section 
             className={`glass-panel rounded-2xl p-4 sm:p-6 transition-colors ${isDragging ? "border-primary bg-primary/20 ring-2 ring-primary/40" : ""}`}
             onDragOver={onDragOver}
@@ -814,7 +814,7 @@ function Index() {
           </section>
         </div>
 
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 min-w-0">
           {(error || notice) && (
             <div className={`rounded-lg border p-3 text-sm sm:p-4 ${error ? "border-destructive bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
               <div className="flex items-start gap-2">
@@ -1066,7 +1066,7 @@ function ExtractionSummary({ data }: { data: Partial<AssetRow> }) {
   ].filter(([, v]) => v && String(v).toUpperCase() !== "N/A");
 
   return (
-    <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
+    <section className="glass-panel rounded-2xl p-4 sm:p-6">
       <div className="mb-2 flex items-center gap-2 sm:mb-3">
         <CheckCircle2 className="h-5 w-5 text-primary" />
         <h2 className="text-base font-semibold sm:text-lg">نتيجة التحليل</h2>
