@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/sheets-append")({
           }
 
           const tab = (sheetName || "Sheet1").trim() || "Sheet1";
-          const range = `${tab}!A:AE`;
+          const range = encodeURIComponent(`'${tab}'!A:AE`);
           const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
 
           const upstream = await fetch(url, {
