@@ -58,6 +58,7 @@ type AssetRow = {
   update: string;
   need: string;
   solution_by: string;
+  pendingSync?: boolean;
 };
 
 type Quality = {
@@ -344,6 +345,7 @@ function Index() {
   const [locHistory, setLocHistory] = useState<string[]>([]);
   const [deptHistory, setDeptHistory] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [syncTrigger, setSyncTrigger] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -502,6 +504,16 @@ function Index() {
   }
 
   async function saveToSheet() {
+    if (!navigator.onLine) {
+      const offlineRow = { ...row, pendingSync: true };
+      persistSuggestions(offlineRow);
+      setSaved((c) => [...c, offlineRow]);
+      setRow(makeEmpty());
+      clearImages();
+      setNotice("تم حفظ الصف محلياً (لا يوجد اتصال بالإنترنت). ستتم المزامنة لاحقاً.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     const spreadsheetId = extractSpreadsheetId(sheetInput);
     setSavingSheet(true); setError(null); setNotice(null);
     try {
@@ -518,9 +530,59 @@ function Index() {
       clearImages();
       setNotice("تم حفظ الصف وإرساله إلى Google Sheets.");
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { 
+      const offlineRow = { ...row, pendingSync: true };
+      persistSuggestions(offlineRow);
+      setSaved((c) => [...c, offlineRow]);
+      setRow(makeEmpty());
+      clearImages();
+      setNotice(`فشل الإرسال (${(e as Error).message}). تم الحفظ محلياً بانتظار المزامنة.`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     finally { setSavingSheet(false); }
   }
+
+  async function syncPendingAction() {
+    const pending = saved.filter(s => s.pendingSync);
+    if (pending.length === 0) return;
+    setSavingSheet(true); setError(null);
+    let successCount = 0;
+    try {
+      const spreadsheetId = extractSpreadsheetId(sheetInput);
+      const newSaved = [...saved];
+      for (let i = 0; i < newSaved.length; i++) {
+        if (newSaved[i].pendingSync) {
+          const res = await fetch("/api/sheets-append", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ spreadsheetId, sheetName: sheetName || DEFAULT_SHEET_NAME, values: rowToSheetValues(newSaved[i]) }),
+          });
+          if (res.ok) {
+            delete newSaved[i].pendingSync;
+            successCount++;
+          }
+        }
+      }
+      setSaved(newSaved);
+      if (successCount > 0) setNotice(`تمت مزامنة ${successCount} صفوف بنجاح.`);
+    } catch (e) {
+      setError(`فشلت المزامنة: ${(e as Error).message}`);
+    } finally {
+      setSavingSheet(false);
+    }
+  }
+
+  useEffect(() => {
+    const handleOnline = () => setSyncTrigger(t => t + 1);
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
+  useEffect(() => {
+    if (syncTrigger > 0 && navigator.onLine) {
+      syncPendingAction();
+    }
+  }, [syncTrigger]);
 
   function removeSaved(index: number) {
     setSaved((current) => current.filter((_, i) => i !== index));
@@ -845,14 +907,25 @@ function Index() {
           <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-semibold sm:text-lg">الصفوف المحفوظة ({saved.length})</h2>
-              <button
-                onClick={exportCsv}
-                disabled={saved.length === 0}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:text-sm"
-              >
-                <Download className="h-4 w-4" />
-                CSV
-              </button>
+              <div className="flex gap-2">
+                {saved.some(s => s.pendingSync) && (
+                   <button
+                     onClick={syncPendingAction}
+                     disabled={savingSheet}
+                     className="inline-flex items-center gap-2 rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60 sm:text-sm"
+                   >
+                     مزامنة المعلقات ⏳
+                   </button>
+                )}
+                <button
+                  onClick={exportCsv}
+                  disabled={saved.length === 0}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:text-sm"
+                >
+                  <Download className="h-4 w-4" />
+                  CSV
+                </button>
+              </div>
             </div>
             {saved.length === 0 ? (
               <p className="rounded-lg border border-dashed bg-muted/50 p-4 text-center text-xs text-muted-foreground sm:text-sm">لا توجد صفوف بعد.</p>
