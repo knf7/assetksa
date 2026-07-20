@@ -45,9 +45,13 @@ export const Route = createFileRoute("/api/sheets-append")({
             body: JSON.stringify({ values: [values] }),
           });
 
-          const text = await upstream.text();
+          let text = await upstream.text();
           if (!upstream.ok) {
-            return Response.json({ error: text || "فشل الحفظ في Google Sheets" }, { status: upstream.status });
+            let errorMsg = text || "فشل الحفظ في Google Sheets";
+            if (errorMsg.includes("Unable to parse range")) {
+              errorMsg = `التبويب '${tab}' غير موجود في ملف الإكسل. يرجى التأكد من تطابق اسم التبويب (Sheet Name) تماماً.`;
+            }
+            return Response.json({ error: errorMsg }, { status: upstream.status });
           }
 
           return Response.json({ ok: true, result: text ? JSON.parse(text) : null });
