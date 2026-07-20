@@ -533,7 +533,16 @@ function Index() {
   const recentLocations = useMemo(() => locHistory.slice(0, 6), [locHistory]);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-background text-foreground">
+    <div dir="rtl" className="min-h-screen bg-background text-foreground relative">
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-xl bg-card p-6 shadow-lg border">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="font-medium text-lg">جاري التحليل الذكي...</p>
+            <p className="text-sm text-muted-foreground">قد يستغرق بضع ثوانٍ</p>
+          </div>
+        </div>
+      )}
       <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-5">
           <div className="flex items-center justify-between gap-3">
@@ -578,17 +587,17 @@ function Index() {
               <button
                 onClick={() => camRef.current?.click()}
                 disabled={!canAddMore}
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:scale-95 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-base font-medium text-primary-foreground hover:bg-primary/90 active:scale-95 disabled:opacity-50"
               >
-                <Camera className="h-4 w-4" />
+                <Camera className="h-5 w-5" />
                 كاميرا
               </button>
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={!canAddMore}
-                className="inline-flex items-center justify-center gap-2 rounded-md border bg-background px-3 py-2.5 text-sm font-medium hover:bg-accent active:scale-95 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border bg-background px-4 py-3.5 text-base font-medium hover:bg-accent active:scale-95 disabled:opacity-50"
               >
-                <Upload className="h-4 w-4" />
+                <Upload className="h-5 w-5" />
                 رفع صور
               </button>
               <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files)} />
@@ -670,7 +679,10 @@ function Index() {
               <div className="mt-3 space-y-3">
                 <Field label="رابط الشيت أو Spreadsheet ID (اتركه فارغاً للافتراضي)" v={sheetInput} onChange={setSheetInput} placeholder="افتراضي: شيت KFH" />
                 <Field label="اسم التب" v={sheetName} onChange={setSheetName} placeholder={DEFAULT_SHEET_NAME} />
-                <p className="text-[11px] text-muted-foreground">أي مستخدم للموقع يضيف تلقائياً في الشيت الافتراضي ما لم يغيره هنا.</p>
+                <div className="text-[11px] text-muted-foreground space-y-1">
+                  <p>أي مستخدم للموقع يضيف تلقائياً في الشيت الافتراضي ما لم يغيره هنا.</p>
+                  <p className="text-destructive dark:text-red-400">تنبيه هام: إذا كان الحفظ في الشيت الخاص بك لا يعمل، تأكد من إضافة المتغيرات <strong>LOVABLE_API_KEY</strong> و <strong>GOOGLE_SHEETS_API_KEY</strong> في إعدادات Secrets في مشروعك على Lovable.</p>
+                </div>
               </div>
             )}
           </section>
@@ -678,7 +690,7 @@ function Index() {
 
         <div className="space-y-4 sm:space-y-6">
           {(error || notice) && (
-            <div className={`rounded-lg border p-3 text-sm sm:p-4 ${error ? "bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
+            <div className={`rounded-lg border p-3 text-sm sm:p-4 ${error ? "border-destructive bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
               <div className="flex items-start gap-2">
                 {error ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />}
                 <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm">{error ? `خطأ: ${error}` : notice}</pre>
@@ -791,18 +803,20 @@ function Index() {
               <button
                 onClick={saveToSheet}
                 disabled={savingSheet}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 active:scale-95 disabled:opacity-60 sm:flex-none"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-base font-medium text-primary-foreground hover:bg-primary/90 active:scale-95 disabled:opacity-60 sm:w-auto"
               >
-                <FileSpreadsheet className="h-4 w-4" />
+                <FileSpreadsheet className="h-5 w-5" />
                 {savingSheet ? "جاري الإرسال..." : "إرسال للشيت"}
               </button>
-              <button onClick={save} className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                <Save className="h-4 w-4" />
-                محلي
-              </button>
-              <button onClick={() => setRow(makeEmpty())} className="rounded-md border bg-background px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                مسح
-              </button>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <button onClick={save} className="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg border bg-background px-4 py-3.5 text-base font-medium hover:bg-accent">
+                  <Save className="h-5 w-5" />
+                  محلي
+                </button>
+                <button onClick={() => setRow(makeEmpty())} className="flex-1 sm:flex-none rounded-lg border bg-background px-4 py-3.5 text-base font-medium hover:bg-accent">
+                  مسح
+                </button>
+              </div>
             </div>
           </section>
 

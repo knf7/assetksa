@@ -22,7 +22,13 @@ export const Route = createFileRoute("/api/sheets-append")({
           const lovableKey = process.env.LOVABLE_API_KEY;
           const sheetsKey = process.env.GOOGLE_SHEETS_API_KEY;
           if (!lovableKey || !sheetsKey) {
-            return Response.json({ error: "Google Sheets غير مربوط بالكامل" }, { status: 500 });
+            return Response.json(
+              {
+                error:
+                  "لم يتم ربط Google Sheets بالكامل. يرجى التأكد من إضافة المفاتيح (LOVABLE_API_KEY و GOOGLE_SHEETS_API_KEY) في إعدادات Secrets الخاصة بـ Lovable.",
+              },
+              { status: 500 }
+            );
           }
 
           const tab = (sheetName || "Sheet1").trim() || "Sheet1";
