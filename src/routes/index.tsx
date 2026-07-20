@@ -71,6 +71,12 @@ type Quality = {
   notes: string[];
 };
 
+type QAResult = {
+  isCorrect: boolean;
+  needsHumanVerification: boolean;
+  feedback: string;
+};
+
 type ImageItem = {
   id: string;
   dataUrl: string;
@@ -346,6 +352,8 @@ function Index() {
   const [deptHistory, setDeptHistory] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [syncTrigger, setSyncTrigger] = useState(0);
+  const [qaResult, setQaResult] = useState<QAResult | null>(null);
+  const [qaLoading, setQaLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -405,7 +413,7 @@ function Index() {
 
   function removeImage(id: string) { setImages((c) => c.filter((i) => i.id !== id)); }
   function clearImages() {
-    setImages([]); setError(null); setLastExtracted(null);
+    setImages([]); setError(null); setLastExtracted(null); setQaResult(null);
     if (fileRef.current) fileRef.current.value = "";
     if (camRef.current) camRef.current.value = "";
   }
@@ -429,7 +437,7 @@ function Index() {
   async function analyze() {
     if (images.length === 0) return;
     const worst = images.reduce((acc, cur) => (cur.quality.score < acc.quality.score ? cur : acc), images[0]);
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setQaResult(null);
     setNotice(worst.quality.status === "bad" ? "جودة صورة واحدة ضعيفة، لكن سأحللها الآن وأعرض أي نتيجة ممكنة." : null);
     try {
       const res = await fetch("/api/extract-asset", {
@@ -492,6 +500,28 @@ function Index() {
   function persistSuggestions(r: AssetRow) {
     if (r.location && r.location !== NA) rememberValue("kfh-locations", r.location, locHistory, setLocHistory);
     if (r.department && r.department !== NA) rememberValue("kfh-departments", r.department, deptHistory, setDeptHistory);
+  }
+
+  async function runQA() {
+    if (images.length === 0 || !lastExtracted) return;
+    setQaLoading(true); setQaResult(null); setError(null);
+    try {
+      const res = await fetch("/api/qa-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageDataUrls: images.map(i => i.dataUrl),
+          extractedData: row
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل التحقق");
+      setQaResult(data as QAResult);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setQaLoading(false);
+    }
   }
 
   function save() {
@@ -783,6 +813,31 @@ function Index() {
           )}
 
           {lastExtracted && <ExtractionSummary data={lastExtracted} />}
+
+          {lastExtracted && (
+            <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5 mb-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold sm:text-lg flex items-center gap-2">
+                  <span>وكيل التحقق 🕵️‍♂️</span>
+                </h2>
+                <button
+                  onClick={runQA}
+                  disabled={qaLoading}
+                  className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {qaLoading ? "جاري التحقق..." : "شغّل وكيل التحقق"}
+                </button>
+              </div>
+              {qaResult && (
+                <div className={`mt-3 rounded-md border p-3 text-sm ${qaResult.isCorrect && !qaResult.needsHumanVerification ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 border-amber-500/50 text-amber-700 dark:text-amber-400"}`}>
+                  <div className="font-semibold mb-1">
+                    {qaResult.isCorrect && !qaResult.needsHumanVerification ? "✅ البيانات متطابقة!" : "⚠️ يتطلب تحقق بشري"}
+                  </div>
+                  <div className="whitespace-pre-wrap">{qaResult.feedback}</div>
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
