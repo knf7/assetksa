@@ -343,6 +343,7 @@ function Index() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [locHistory, setLocHistory] = useState<string[]>([]);
   const [deptHistory, setDeptHistory] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -406,6 +407,22 @@ function Index() {
     if (fileRef.current) fileRef.current.value = "";
     if (camRef.current) camRef.current.value = "";
   }
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      onFiles(e.dataTransfer.files);
+    }
+  };
 
   async function analyze() {
     if (images.length === 0) return;
@@ -572,18 +589,23 @@ function Index() {
 
       <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4 sm:space-y-6">
-          <section className="rounded-lg border bg-card p-3 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
+          <section 
+            className={`rounded-lg border bg-card p-3 shadow-sm sm:p-5 transition-colors ${isDragging ? "border-primary bg-primary/5 ring-2 ring-primary/20" : ""}`}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2 pointer-events-none">
               <div className="flex items-center gap-2">
                 <ImageIcon className="h-5 w-5 text-primary" />
-                <h2 className="text-base font-semibold sm:text-lg">صور الجهاز</h2>
+                <h2 className="text-base font-semibold sm:text-lg">صور الجهاز {isDragging && <span className="text-primary text-sm">(أفلت الصور هنا)</span>}</h2>
               </div>
               <span className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground" dir="ltr">
                 {images.length}/{MAX_IMAGES}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 relative z-10">
               <button
                 onClick={() => camRef.current?.click()}
                 disabled={!canAddMore}
