@@ -11,8 +11,8 @@ export const Route = createFileRoute("/api/qa-verify")({
           if (valid.length === 0) {
             return Response.json({ error: "Invalid image data" }, { status: 400 });
           }
-          const key = process.env.LOVABLE_API_KEY;
-          if (!key) return Response.json({ error: "Missing LOVABLE_API_KEY" }, { status: 500 });
+          const key = process.env.GEMINI_API_KEY;
+          if (!key) return Response.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
 
           const upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
             method: "POST",
