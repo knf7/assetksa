@@ -14,16 +14,15 @@ export const Route = createFileRoute("/api/smart-fill")({
           const key = process.env.LOVABLE_API_KEY;
           if (!key) return Response.json({ error: "Missing LOVABLE_API_KEY" }, { status: 500 });
 
-          const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Lovable-API-Key": key,
-              "X-Lovable-AIG-SDK": "direct-fetch",
+              "Authorization": `Bearer ${key}`,
             },
             body: JSON.stringify({
-              model: "google/gemini-3.1-pro-preview",
-              max_tokens: 1000,
+              model: "gemini-3.1-pro-preview",
+              max_tokens: 1600,
               messages: [
                 {
                   role: "system",
