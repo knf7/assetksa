@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/extract-asset")({
               "Authorization": `Bearer ${key}`,
             },
             body: JSON.stringify({
-              model: "gemini-2.5-flash",
+              model: "gemini-2.0-flash",
               max_tokens: 1600,
               messages: [
                 {
