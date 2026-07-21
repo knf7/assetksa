@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/qa-verify")({
               "Authorization": `Bearer ${key}`,
             },
             body: JSON.stringify({
-              model: "gemini-3.1-pro-preview",
+              model: "gemini-2.5-flash",
               max_tokens: 1600,
               messages: [
                 {
