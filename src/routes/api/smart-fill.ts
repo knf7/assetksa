@@ -14,14 +14,16 @@ export const Route = createFileRoute("/api/smart-fill")({
           const key = process.env.GEMINI_API_KEY;
           if (!key) return Response.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
 
-          const upstream = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          const upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${key}`,
+              "HTTP-Referer": "https://lovable.app",
+              "X-Title": "Asset Scanner",
             },
             body: JSON.stringify({
-              model: "gemini-2.0-flash",
+              model: "google/gemini-2.5-flash",
               max_tokens: 1600,
               messages: [
                 {
