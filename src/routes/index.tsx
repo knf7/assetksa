@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import legacyDevices from "../data/legacy_devices.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -689,26 +690,23 @@ function Index() {
 
   const recentLocations = useMemo(() => locHistory.slice(0, 6), [locHistory]);
 
-  async function handleSearch(e?: React.FormEvent) {
+  function handleSearch(e?: React.FormEvent) {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     setSearchMessage("");
     
     try {
-      const res = await fetch("/api/sheets-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          spreadsheetId: extractSpreadsheetId(sheetUrl),
-          sheetName: sheetName,
-          query: searchQuery
-        })
+      const q = searchQuery.trim().toLowerCase();
+      // @ts-ignore
+      const matchedRow = legacyDevices.find((row: any) => {
+        const ministryTag = (row.ministry_tag || "").toString().trim().toLowerCase();
+        const serialNumber = (row.serial_number || "").toString().trim().toLowerCase();
+        return ministryTag === q || serialNumber === q;
       });
       
-      const resData = await res.json();
-      if (resData.found && resData.data) {
-        setData(prev => ({ ...prev, ...resData.data }));
+      if (matchedRow) {
+        setData(prev => ({ ...prev, ...matchedRow }));
         setSearchType("success");
         setSearchMessage("تم العثور على الجهاز وتعبئة البيانات بنجاح!");
         setTimeout(() => setSearchMessage(""), 5000);
@@ -718,7 +716,7 @@ function Index() {
       }
     } catch (e: any) {
       setSearchType("error");
-      setSearchMessage("حدث خطأ أثناء البحث، تأكد من الاتصال.");
+      setSearchMessage("حدث خطأ أثناء البحث.");
     } finally {
       setIsSearching(false);
     }
