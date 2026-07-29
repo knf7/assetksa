@@ -84,23 +84,22 @@ type ImageItem = {
 };
 
 // --- Dropdown values — EXACTLY as they appear in the KFH master Excel sheet. ---
-const DEVICE_TYPES = ["All In One", "Desktop computer", "Laptop", "Printer", "UPS"];
-const MANUFACTURERS = ["Brother", "Dell", "Eaton", "Fujitsu Siemens", "HP", "Lenovo"];
+const DEVICE_TYPES = ["Laptop", "Desktop computer", "Printers", "UPS"];
+const MANUFACTURERS = ["HP", "DELL", "LENOVO", "THINKCENTER", "Brother", "Other"];
 const FLOORS = ["B", "G", "M", "1", "2", "3", "4", "5"];
-const LIFECYCLE = ["In Use", "Not In Use"];
-const AGE = ["Less Then 10 Years", "More Then 10 Years"];
-const CONNECTION = ["Ethernet", "WiFi", "USB WiFi", "N/A"];
-const YESNO_UP = ["YES", "No", "N/A"];
+const LIFECYCLE = ["In Use", "Not Use", "Need to repair", "In Store"];
+const AGE = ["Less than 10 years", "More than 10 years", "N/A"];
+const CONNECTION = ["Ethernet", "WiFi", "N/A"];
+const YESNO_UP = ["Yes", "No", "N/A"];
 const YESNO = ["Yes", "No", "N/A"];
 const IP_TYPE = ["Dynamic", "Static", "N/A"];
-const CLEAN = ["No Need", "N/A"];
-const WINDOWS = ["Windows 10", "Windows 11", "N/A"];
-// Excel keeps the "Inter Cor" typo — preserve it so exports match the master sheet.
-const PROCESSORS = ["Inter Cor i5", "Inter Cor i7", "N/A"];
-const RAM_OPT = ["8 GB", "16 GB", "N/A"];
-const HDD_OPT = ["500 GB", "1 TB", "N/A"];
-const SSD_OPT = ["120 GB", "480 GB", "N/A"];
-const PROGRAMMING_OPT = ["N/A"];
+const CLEAN = ["No need", "Need", "N/A"];
+const WINDOWS = ["Windows 11", "Windows 11 Pro", "Windows 11 Enterprise", "Windows 10", "Windows 10 Pro", "Windows 10 Enterprise", "Windows 10 Enterprise 22H2", "N/A"];
+const PROCESSORS = ["i3", "i5", "i7", "N/A"];
+const RAM_OPT = ["3 GB", "4 GB", "8 GB", "12 GB", "16 GB", "N/A"];
+const HDD_OPT = ["466 GB", "500 GB", "512 GB", "932 GB", "945 GB", "1TB", "N/A"];
+const SSD_OPT = ["240 GB", "256 GB", "477 GB", "480 GB", "500 GB", "512 GB", "954 GB", "1 TB", "N/A"];
+const PROGRAMMING_OPT = ["Need some App", "No", "Yes", "N/A"];
 const SOLUTION_BY = ["IT", "N/A"];
 
 function todayStr() {
@@ -344,6 +343,10 @@ function Index() {
   const [notice, setNotice] = useState<string | null>(null);
   const [lastExtracted, setLastExtracted] = useState<Partial<AssetRow> | null>(null);
   const [scans, setScans] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
+  const [searchType, setSearchType] = useState<"success"|"error">("success");
   const [sheetInput, setSheetInput] = useState("");
   const [sheetName, setSheetName] = useState(DEFAULT_SHEET_NAME);
   const [showSheetSettings, setShowSheetSettings] = useState(false);
@@ -686,6 +689,41 @@ function Index() {
 
   const recentLocations = useMemo(() => locHistory.slice(0, 6), [locHistory]);
 
+  async function handleSearch(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    setSearchMessage("");
+    
+    try {
+      const res = await fetch("/api/sheets-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spreadsheetId: extractSpreadsheetId(sheetUrl),
+          sheetName: sheetName,
+          query: searchQuery
+        })
+      });
+      
+      const resData = await res.json();
+      if (resData.found && resData.data) {
+        setData(prev => ({ ...prev, ...resData.data }));
+        setSearchType("success");
+        setSearchMessage("تم العثور على الجهاز وتعبئة البيانات بنجاح!");
+        setTimeout(() => setSearchMessage(""), 5000);
+      } else {
+        setSearchType("error");
+        setSearchMessage("الجهاز غير موجود في الملف، يرجى الاستمرار بالتسجيل اليدوي أو التصوير.");
+      }
+    } catch (e: any) {
+      setSearchType("error");
+      setSearchMessage("حدث خطأ أثناء البحث، تأكد من الاتصال.");
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-animated-gradient text-foreground relative overflow-x-hidden">
       {loading && (
@@ -726,6 +764,35 @@ function Index() {
 
       <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4 sm:space-y-6 min-w-0">
+          {/* Search Section */}
+          <section className="glass-panel rounded-2xl p-4 sm:p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold sm:text-base text-foreground">
+              <ScanLine className="h-4 w-4 text-primary" />
+              البحث عن جهاز قديم
+            </h2>
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="رقم السيريال أو المينستري تاج..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={isSearching || !searchQuery.trim()}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {isSearching ? "يبحث..." : "بحث"}
+              </button>
+            </form>
+            {searchMessage && (
+              <p className={`mt-2 text-xs font-medium ${searchType === "success" ? "text-green-600" : "text-amber-600"}`}>
+                {searchMessage}
+              </p>
+            )}
+          </section>
+
           <section 
             className={`glass-panel rounded-2xl p-4 sm:p-6 transition-colors ${isDragging ? "border-primary bg-primary/20 ring-2 ring-primary/40" : ""}`}
             onDragOver={onDragOver}
