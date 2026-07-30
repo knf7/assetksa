@@ -697,12 +697,12 @@ function Index() {
     setSearchMessage("");
     
     try {
-      const q = searchQuery.trim().toLowerCase();
+      const q = searchQuery.replace(/\s+/g, "").toLowerCase();
       // @ts-ignore
       const matchedRow = legacyDevices.find((row: any) => {
-        const ministryTag = (row.ministry_tag || "").toString().trim().toLowerCase();
-        const serialNumber = (row.serial_number || "").toString().trim().toLowerCase();
-        return ministryTag === q || serialNumber === q;
+        const ministryTag = (row.ministry_tag || "").toString().replace(/\s+/g, "").toLowerCase();
+        const serialNumber = (row.serial_number || "").toString().replace(/\s+/g, "").toLowerCase();
+        return ministryTag.includes(q) || serialNumber.includes(q);
       });
       
       if (matchedRow) {
